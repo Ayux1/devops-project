@@ -30,3 +30,25 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t devops-project .
+
+      - name: Run Docker container
+        run: |
+          docker run -d --name devops-ci-test -p 5000:5000 devops-project
+
+      - name: Test running container
+        run: |
+          for i in {1..10}; do
+            if curl --fail http://localhost:5000/; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs devops-ci-test
+          exit 1
+
+      - name: Stop and remove container
+        if: always()
+        run: |
+          docker rm -f devops-ci-test || true
+
+

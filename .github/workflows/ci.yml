@@ -1,11 +1,14 @@
-
-name: Flask App CI
+name: Flask App CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   test-and-build:
@@ -48,10 +51,7 @@ jobs:
 
       - name: Stop and remove container
         if: always()
-        run: |
-          docker rm -f devops-ci-test || true
-
-
+        run: docker rm -f devops-ci-test || true
 
       - name: Log in to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -62,8 +62,30 @@ jobs:
 
       - name: Tag image for Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: docker tag devops-project:latest ayux1/devops-project:latest
+        run: |
+          docker tag devops-project:latest ayux1/devops-project:${{ github.sha }}
+          docker tag devops-project:latest ayux1/devops-project:latest
 
-      - name: Push image to Docker Hub
+      - name: Push versioned image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: docker push ayux1/devops-project:${{ github.sha }}
+
+      - name: Push latest image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: docker push ayux1/devops-project:latest
+
+      - name: Log in to Azure using OIDC
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Container App
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          az containerapp update \
+            --name devops-flask-app \
+            --resource-group rg-devops-project \
+            --image docker.io/ayux1/devops-project:${{ github.sha }}

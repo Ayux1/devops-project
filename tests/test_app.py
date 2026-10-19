@@ -13,7 +13,7 @@ class TestHomeRoute(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.get_data(as_text=True),
-            "Hello from my DevOps project - Version 2!"
+            "Hello from my DevOps project - Version 3!"
         )
 
 
